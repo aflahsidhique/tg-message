@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Command,
@@ -114,7 +113,6 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
     setSendResults(null);
 
     const recipients = getRecipientCount();
-    console.log("🚀 ~ handleSendMessage ~ recipients:", recipients)
     const placeholderRegex = /{{(?:username|firstname|lastname)}}/;
     const shouldPersonalize = placeholderRegex.test(messageText);
 
@@ -164,7 +162,7 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
                   const data = JSON.parse(line.slice(6));
                   if (data.progress !== undefined) setSendProgress(data.progress);
                   if (data.results) setSendResults(data.results);
-                } catch {}
+                } catch { }
               }
             });
           }
@@ -174,7 +172,7 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
       setMessageText('');
       setSelectedUsers([]);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);  
+      alert(`Error: ${err.message}`);
     } finally {
       setSending(false);
     }
@@ -324,7 +322,9 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
                     <span>Sending progress</span>
                     <span>{sendProgress}%</span>
                   </div>
-                  <Progress value={sendProgress} className="w-full" />
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
                 </div>
               )}
 
