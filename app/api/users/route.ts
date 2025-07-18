@@ -17,16 +17,34 @@ export async function GET(req: Request) {
     // Parse pagination params
     const { searchParams } = new URL(req.url);
     
+    const search = searchParams.get('search')?.trim();
+    
+    let usersQuery = 'SELECT * FROM users';
+    let countQuery = 'SELECT COUNT(*) FROM users';
+    let queryParams: any[] = [];
+    let whereClauses: string[] = [];
+
+    if (search) {
+      whereClauses.push(`(username ILIKE $${queryParams.length + 1} OR firstname ILIKE $${queryParams.length + 1} OR lastname ILIKE $${queryParams.length + 1})`);
+      queryParams.push(`%${search}%`);
+    }
+
+    if (whereClauses.length > 0) {
+      usersQuery += ' WHERE ' + whereClauses.join(' AND ');
+      countQuery += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    usersQuery += ' ORDER BY id DESC LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2);
 
     // Get total count
-    const totalResult = await pool.query('SELECT COUNT(*) FROM users');
+    const totalResult = await pool.query(countQuery, queryParams);
     const total = parseInt(totalResult.rows[0].count, 10);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || total.toString());
     const offset = (page - 1) * limit;
 
     // Get paginated users
-    const result = await pool.query('SELECT * FROM users ORDER BY id DESC LIMIT $1 OFFSET $2', [limit, offset]);
+    const result = await pool.query(usersQuery, [...queryParams, limit, offset]);
     const now = new Date();
 
     const users: TelegramUser[] = result.rows.map((row: { last_login: string | number | Date; id: { toString: () => any; }; telegramid: any; username: any; firstname: any; lastname: any; created_at: string | number | Date; total_coins: any; }) => {

@@ -7,14 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Users, Send, AlertCircle, CheckCircle, ChevronsUpDown } from 'lucide-react';
 
@@ -31,6 +23,23 @@ interface MessageComposerProps {
   onMessageSent: () => void;
 }
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export function MessageComposer({ onMessageSent }: MessageComposerProps) {
   const [messageText, setMessageText] = useState('');  // message body state
   const [recipientType, setRecipientType] = useState<'all' | 'active' | 'inactive' | 'recent' | 'specific'>('all');  // recipient filter
@@ -41,27 +50,40 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
   const [users, setUsers] = useState<TelegramUser[]>([]);  // all users list
   const [selectedUsers, setSelectedUsers] = useState<TelegramUser[]>([]);  // specifically selected users
   const [search, setSearch] = useState('');  // user search input
+  const [loadingUsers, setLoadingUsers] = useState(false); // loading state for users
   const textareaRef = useRef<HTMLTextAreaElement>(null);  // ref to textarea for cursor position
+  const debouncedSearch = useDebounce(search, 300);
 
+  // Fetch users only when recipientType is 'specific' and on search
   useEffect(() => {
+    if (recipientType === 'specific') return;
+    setLoadingUsers(true);
     fetch('/api/users')
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setUsers(data);
-        } else if (Array.isArray(data.users)) {
-          setUsers(data.users);
-        } else {
-          setUsers([]);
-        }
-      });
-  }, []);
-
+        if (Array.isArray(data)) setUsers(data);
+        else if (Array.isArray(data.users)) setUsers(data.users);
+        else setUsers([]);
+      })
+      .finally(() => setLoadingUsers(false));
+  }, [recipientType]);
+  
+  useEffect(() => {
+    if (recipientType !== 'specific') return;
+    setLoadingUsers(true);
+    const query = search ? `&search=${encodeURIComponent(search)}` : '';
+    fetch(`/api/users?limit=50${query}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("Fetched data:", data);
+        if (Array.isArray(data)) setUsers(data);
+        else if (Array.isArray(data.users)) setUsers(data.users);
+        else setUsers([]);
+      })
+      .finally(() => setLoadingUsers(false));
+  }, [recipientType, debouncedSearch]);
+  
   const now = new Date();  // current timestamp
-  const filtered = users.filter(u => {  // filter users by search
-    const display = u.username || `${u.first_name} ${u.last_name}`;
-    return display.toLowerCase().includes(search.toLowerCase());
-  });
 
   const toggleUser = (user: TelegramUser) => {  // add/remove from specific selection
     setSelectedUsers(prev =>
@@ -279,27 +301,53 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Type to filter…" value={search} onValueChange={setSearch} />
-                        <CommandList>
-                          <CommandEmpty>No users found.</CommandEmpty>
-                          <CommandGroup heading="Users">
-                            {filtered.map(user => {
-                              const display = user.username || user.telegram_id;
-                              const lastLogin = new Date(user.last_activity);
-                              const isActive = (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <= 3;
-                              return (
-                                <CommandItem key={user.telegram_id} onSelect={() => toggleUser(user)}>
-                                  <span className="flex-1">{display}</span>
-                                  <Badge variant={isActive ? 'default' : 'secondary'}>
-                                    {isActive ? 'Active' : 'Inactive'}
-                                  </Badge>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
+                      <div className="p-2 border-b flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Type to filter…"
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                        {selectedUsers.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs px-2 py-1"
+                            onClick={() => setSelectedUsers([])}
+                            type="button"
+                          >
+                            Clear All
+                          </Button>
+                        )}
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {loadingUsers ? (
+                          <div className="p-4 text-center text-sm text-slate-500">Loading…</div>
+                        ) : users.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-slate-500">No users found.</div>
+                        ) : (
+                          users.map(user => {
+                            const display = user.username || user.telegram_id;
+                            const lastLogin = new Date(user.last_activity);
+                            const isActive = (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24) <= 3;
+                            const checked = selectedUsers.some(u => u.telegram_id === user.telegram_id);
+                            return (
+                              <div
+                                key={user.telegram_id}
+                                className="flex items-center px-3 py-2 hover:bg-slate-50 cursor-pointer gap-2"
+                                onClick={() => toggleUser(user)}
+                              >
+                                <Checkbox checked={checked} onCheckedChange={() => toggleUser(user)} />
+                                <span className="flex-1 text-sm">{display}</span>
+                                <Badge variant={isActive ? 'default' : 'secondary'}>
+                                  {isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </PopoverContent>
                   </Popover>
                 </div>
