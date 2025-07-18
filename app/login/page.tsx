@@ -1,6 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -9,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if already logged in by trying to access a protected resource
@@ -34,8 +41,15 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess("Login successful!");
-        setTimeout(() => router.replace("/dashboard"), 500);
+        toast({
+          title: "Login successful!",
+          description: "Dashboard loading, please wait...",
+        });
+        setLoading(true);
+        setTimeout(() => {
+          setLoading(false);
+          router.replace("/dashboard");
+        }, 1800);
       } else {
         setError(data.message || "Login failed");
       }
@@ -47,42 +61,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded shadow-md w-full max-w-sm"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-        {error && <div className="mb-4 text-red-500">{error}</div>}
-        {success && <div className="mb-4 text-green-600">{success}</div>}
-        <div className="mb-4">
-          <label className="block mb-1 font-medium">Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div className="mb-6">
-          <label className="block mb-1 font-medium">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-          disabled={loading}
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+    <div className="flex min-h-screen items-center justify-center bg-muted">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-center">Login</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+                placeholder="Enter your username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="Enter your password"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 } 
