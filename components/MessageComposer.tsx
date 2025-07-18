@@ -44,9 +44,17 @@ export function MessageComposer({ onMessageSent }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);  // ref to textarea for cursor position
 
   useEffect(() => {
-    fetch('/api/users')  // fetch user list on mount
+    fetch('/api/users')
       .then(res => res.json())
-      .then(setUsers);
+      .then(data => {
+        if (Array.isArray(data)) {
+          setUsers(data);
+        } else if (Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else {
+          setUsers([]);
+        }
+      });
   }, []);
 
   const now = new Date();  // current timestamp

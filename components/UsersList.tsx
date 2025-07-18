@@ -177,7 +177,7 @@ export function UsersList() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">
-            Users ({filteredUsers.length})
+            Users ({totalUsers})
           </h3>
           <p className="text-sm text-slate-600">
             Manage your Telegram bot users

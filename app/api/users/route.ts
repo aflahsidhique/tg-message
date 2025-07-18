@@ -16,13 +16,14 @@ export async function GET(req: Request) {
   try {
     // Parse pagination params
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
-    const offset = (page - 1) * limit;
+    
 
     // Get total count
     const totalResult = await pool.query('SELECT COUNT(*) FROM users');
     const total = parseInt(totalResult.rows[0].count, 10);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || total.toString());
+    const offset = (page - 1) * limit;
 
     // Get paginated users
     const result = await pool.query('SELECT * FROM users ORDER BY id DESC LIMIT $1 OFFSET $2', [limit, offset]);
